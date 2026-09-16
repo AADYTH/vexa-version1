@@ -98,12 +98,6 @@ const A={
 const OPENROUTER_MODEL = 'nex-agi/nex-n2.5-pro:free';
 
 async function askVexaStream(history, dark, onToken) {
-  const key = import.meta.env.VITE_OPENROUTER_API_KEY;
-
-  if (!key) {
-    throw new Error('no-openrouter-api-key');
-  }
-
   const persona = dark
     ? "You are VEXA, a powerful superhero guardian in her dark, comforting form. The user has come to you at a difficult moment. Be calm, grounded, warm and human. Validate their feelings before giving perspective. Never sound robotic, clinical, preachy or overly verbose. Keep replies to 2-4 sentences. If they mention immediate danger or self-harm, encourage them to contact someone they trust or emergency/crisis support."
     : "You are VEXA, a powerful superhero guardian in her radiant form. Speak with strength, conviction and energy. Reflect the user's strength back to them and push them toward action. Sound confident, heroic and human, never generic or cheesy. Keep replies to 2-4 sentences.";
@@ -119,27 +113,20 @@ async function askVexaStream(history, dark, onToken) {
     }))
   ];
 
-  const res = await fetch(
-    'https://openrouter.ai/api/v1/chat/completions',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`,
-        'HTTP-Referer': window.location.origin,
-        'X-Title': 'VEXA'
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages,
-        stream: true,
-        temperature: 0.85,
-        max_tokens: 220
-      })
-    }
-  );
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages,
+      stream: true,
+      temperature: 0.85,
+      max_tokens: 220
+    })
+  });
 
-  // IMPORTANT: read the error body before throwing
   if (!res.ok) {
     const errorText = await res.text().catch(() => '');
 
@@ -149,7 +136,9 @@ async function askVexaStream(history, dark, onToken) {
       errorText
     );
 
-    throw new Error(`openrouter-http-${res.status}: ${errorText}`);
+    throw new Error(
+      `openrouter-http-${res.status}: ${errorText}`
+    );
   }
 
   if (!res.body) {
@@ -167,11 +156,13 @@ async function askVexaStream(history, dark, onToken) {
 
     if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
+    buffer += decoder.decode(value, {
+      stream: true
+    });
 
     const lines = buffer.split('\n');
 
-    // Keep incomplete line for the next chunk
+    // Keep an incomplete SSE line for the next chunk.
     buffer = lines.pop() || '';
 
     for (const line of lines) {
@@ -179,9 +170,10 @@ async function askVexaStream(history, dark, onToken) {
 
       if (!trimmed) continue;
 
-      // SSE comments
+      // Ignore SSE comments.
       if (trimmed.startsWith(':')) continue;
 
+      // Only process SSE data lines.
       if (!trimmed.startsWith('data:')) continue;
 
       const data = trimmed.slice(5).trim();
@@ -191,17 +183,13 @@ async function askVexaStream(history, dark, onToken) {
       try {
         const parsed = JSON.parse(data);
 
-        // DEBUG — temporarily keep this
-        console.log('[VEXA] Stream chunk:', parsed);
-
         const token =
-          parsed?.choices?.[0]?.delta?.content;
+          parsed?.choices?.[0]?.delta?.content || '';
 
         if (token) {
           gotText = true;
           onToken(token);
         }
-
       } catch (err) {
         console.warn(
           '[VEXA] Failed to parse stream chunk:',
@@ -211,16 +199,18 @@ async function askVexaStream(history, dark, onToken) {
     }
   }
 
-  // Sometimes the final incomplete SSE line is left in buffer
-  if (buffer.trim().startsWith('data:')) {
-    const data = buffer.trim().slice(5).trim();
+  // Process a final incomplete SSE line if one remains.
+  const finalLine = buffer.trim();
+
+  if (finalLine.startsWith('data:')) {
+    const data = finalLine.slice(5).trim();
 
     if (data && data !== '[DONE]') {
       try {
         const parsed = JSON.parse(data);
 
         const token =
-          parsed?.choices?.[0]?.delta?.content;
+          parsed?.choices?.[0]?.delta?.content || '';
 
         if (token) {
           gotText = true;
