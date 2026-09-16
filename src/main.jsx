@@ -406,8 +406,8 @@ const untilt=e=>{e.currentTarget.style.setProperty('--rx','0deg');e.currentTarge
 /* ---------- intro (book + sigil lock) ---------- */
 function Video({src,onEnded,playKey}){
   const ref=useRef(null); const [needsPlay,setNeedsPlay]=useState(false);
-  useEffect(()=>{const v=ref.current;if(!v)return; v.muted=true;v.playsInline=true;v.currentTime=0;setNeedsPlay(false); const p=v.play(); if(p?.catch)p.catch(()=>setNeedsPlay(true)); return()=>v.pause()},[src,playKey]);
-  return <><video ref={ref} src={src} autoPlay muted playsInline preload="auto" onEnded={onEnded} onError={()=>setNeedsPlay(true)}/>{needsPlay&&<button className="begin" onClick={()=>{ref.current?.play().then(()=>setNeedsPlay(false)).catch(()=>{})}}>▶ Begin cinematic</button>}</>;
+  useEffect(()=>{const v=ref.current;if(!v)return; v.muted=false;v.playsInline=true;v.currentTime=0;setNeedsPlay(false); const p=v.play(); if(p?.catch)p.catch(()=>setNeedsPlay(true)); return()=>v.pause()},[src,playKey]);
+  return <><video ref={ref} src={src} autoPlay  playsInline preload="auto" onEnded={onEnded} onError={()=>setNeedsPlay(true)}/>{needsPlay&&<button className="begin" onClick={()=>{ref.current?.play().then(()=>setNeedsPlay(false)).catch(()=>{})}}>▶ Begin cinematic</button>}</>;
 }
 function Intro({onReveal,onComplete}){
   const SEAL_KEY='vexa-grimoire-seal-v1';
